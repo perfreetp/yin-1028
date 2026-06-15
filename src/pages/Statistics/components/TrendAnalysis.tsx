@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -15,28 +15,65 @@ import { Droplets, Sprout, Thermometer, Leaf, TrendingUp, BarChart3 } from 'luci
 import { useAppStore } from '@/store';
 import { cn, formatNumber, formatDate } from '@/utils';
 
-const TIME_RANGES = [
-  { key: '7d', label: '近7天' },
-  { key: '30d', label: '近30天' },
-  { key: '90d', label: '近90天' },
-  { key: '1y', label: '近1年' },
-];
+interface TimeRange {
+  start: string;
+  end: string;
+}
 
-export default function TrendAnalysis() {
-  const [timeRange, setTimeRange] = useState('30d');
+interface TrendAnalysisProps {
+  plotId: string;
+  timeRange: TimeRange;
+}
+
+function isDateInRange(isoString: string, start: string, end: string): boolean {
+  const date = new Date(isoString.split('T')[0]);
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  return date >= startDate && date <= endDate;
+}
+
+function getDaysBetween(start: string, end: string): number {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+}
+
+export default function TrendAnalysis({ plotId, timeRange }: TrendAnalysisProps) {
   const { irrigationRecords, fertilizationRecords, sensorHistoryData, yieldData, sensors } = useAppStore();
 
   const moistureSensors = useMemo(() => {
-    return sensors.filter((s) => s.type === 'soil_moisture' && s.status === 'online');
-  }, [sensors]);
+    return sensors.filter((s) => {
+      const typeMatch = s.type === 'soil_moisture' && s.status === 'online';
+      const plotMatch = plotId === 'all' || s.plotId === plotId;
+      return typeMatch && plotMatch;
+    });
+  }, [sensors, plotId]);
+
+  const days = useMemo(() => getDaysBetween(timeRange.start, timeRange.end), [timeRange]);
+
+  const filteredIrrigationRecords = useMemo(() => {
+    return irrigationRecords.filter((record) => {
+      const plotMatch = plotId === 'all' || record.plotId === plotId;
+      const timeMatch = isDateInRange(record.startTime, timeRange.start, timeRange.end);
+      return plotMatch && timeMatch;
+    });
+  }, [irrigationRecords, plotId, timeRange]);
+
+  const filteredFertilizationRecords = useMemo(() => {
+    return fertilizationRecords.filter((record) => {
+      const plotMatch = plotId === 'all' || record.plotId === plotId;
+      const timeMatch = isDateInRange(record.time, timeRange.start, timeRange.end);
+      return plotMatch && timeMatch;
+    });
+  }, [fertilizationRecords, plotId, timeRange]);
 
   const moistureTrendData = useMemo(() => {
-    const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 365;
     const data: Array<{ date: string; timestamp: number; [key: string]: string | number }> = [];
-    const now = new Date();
+    const endDate = new Date(timeRange.end);
 
     for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const date = new Date(endDate.getTime() - i * 24 * 60 * 60 * 1000);
       const dateStr = formatDate(date);
       const dayData: { date: string; timestamp: number; [key: string]: string | number } = {
         date: dateStr,
@@ -67,23 +104,22 @@ export default function TrendAnalysis() {
     }
 
     return data;
-  }, [timeRange, moistureSensors, sensorHistoryData]);
+  }, [timeRange, moistureSensors, sensorHistoryData, days]);
 
   const irrigationTrendData = useMemo(() => {
-    const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 365;
     const data: Array<{ date: string; waterUsage: number; fertilizerUsage: number }> = [];
-    const now = new Date();
+    const endDate = new Date(timeRange.end);
 
     for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const date = new Date(endDate.getTime() - i * 24 * 60 * 60 * 1000);
       const dateStr = formatDate(date);
 
-      const dayIrrigation = irrigationRecords.filter((record) => {
+      const dayIrrigation = filteredIrrigationRecords.filter((record) => {
         const recordDate = new Date(record.startTime);
         return recordDate.toDateString() === date.toDateString();
       });
 
-      const dayFertilization = fertilizationRecords.filter((record) => {
+      const dayFertilization = filteredFertilizationRecords.filter((record) => {
         const recordDate = new Date(record.time);
         return recordDate.toDateString() === date.toDateString();
       });
@@ -99,13 +135,17 @@ export default function TrendAnalysis() {
     }
 
     return data;
-  }, [timeRange, irrigationRecords, fertilizationRecords]);
+  }, [timeRange, filteredIrrigationRecords, filteredFertilizationRecords, days]);
 
   const yieldTrendData = useMemo(() => {
-    const years = Array.from(new Set(yieldData.map((item) => item.year))).sort((a, b) => a - b);
+    const filteredYieldData = plotId === 'all'
+      ? yieldData
+      : yieldData.filter(item => item.plotId === plotId);
+
+    const years = Array.from(new Set(filteredYieldData.map((item) => item.year))).sort((a, b) => a - b);
 
     return years.map((year) => {
-      const yearData = yieldData.filter((item) => item.year === year);
+      const yearData = filteredYieldData.filter((item) => item.year === year);
       return {
         year: `${year}年`,
         产量: Math.round(yearData.reduce((sum, item) => sum + item.output, 0) / 1000 * 10) / 10,
@@ -113,7 +153,7 @@ export default function TrendAnalysis() {
         产值: Math.round(yearData.reduce((sum, item) => sum + item.totalRevenue, 0) / 10000 * 10) / 10,
       };
     });
-  }, [yieldData]);
+  }, [yieldData, plotId]);
 
   const sensorLineColors = ['#2D5A27', '#5fad54', '#8B6914', '#4A90D9', '#E67E22'];
 
@@ -147,27 +187,15 @@ export default function TrendAnalysis() {
     { label: '近年平均产量', value: `${formatNumber(latestYield.产量, 1)}吨`, icon: BarChart3, color: 'text-success-600', bg: 'bg-success-50' },
   ];
 
+  const xAxisInterval = useMemo(() => {
+    if (days <= 7) return 0;
+    if (days <= 30) return Math.floor(days / 7);
+    if (days <= 90) return Math.floor(days / 6);
+    return Math.floor(days / 12);
+  }, [days]);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2 bg-white rounded-2xl shadow-card border border-gray-100 p-1.5">
-          {TIME_RANGES.map((range) => (
-            <button
-              key={range.key}
-              onClick={() => setTimeRange(range.key)}
-              className={cn(
-                'px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300',
-                timeRange === range.key
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-primary-600 hover:bg-primary-50'
-              )}
-            >
-              {range.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
@@ -220,7 +248,7 @@ export default function TrendAnalysis() {
                 height={60}
                 tick={{ fontSize: 11, fill: '#6b7280' }}
                 axisLine={{ stroke: '#e5e7eb' }}
-                interval={timeRange === '7d' ? 0 : timeRange === '30d' ? 4 : timeRange === '90d' ? 14 : 30}
+                interval={xAxisInterval}
               />
               <YAxis
                 yAxisId="left"
@@ -296,7 +324,7 @@ export default function TrendAnalysis() {
                 height={60}
                 tick={{ fontSize: 11, fill: '#6b7280' }}
                 axisLine={{ stroke: '#e5e7eb' }}
-                interval={timeRange === '7d' ? 0 : timeRange === '30d' ? 4 : timeRange === '90d' ? 14 : 30}
+                interval={xAxisInterval}
               />
               <YAxis
                 tick={{ fontSize: 12, fill: '#6b7280' }}

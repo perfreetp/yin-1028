@@ -505,6 +505,22 @@ export const mockPlans: WaterFertilizerPlan[] = [
     approvalStatus: 'approved',
     approverId: 'user-1',
     approvalNotes: '同意执行，注意监测土壤湿度变化',
+    approvedAt: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(),
+    approvalHistory: [
+      {
+        action: 'submitted',
+        userId: 'user-2',
+        userName: '李技术员',
+        time: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        action: 'approved',
+        userId: 'user-1',
+        userName: '张经理',
+        time: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(),
+        notes: '同意执行，注意监测土壤湿度变化',
+      },
+    ],
     createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
   },
   {
@@ -526,6 +542,14 @@ export const mockPlans: WaterFertilizerPlan[] = [
     duration: 180,
     status: 'pending',
     approvalStatus: 'pending',
+    approvalHistory: [
+      {
+        action: 'submitted',
+        userId: 'user-2',
+        userName: '李技术员',
+        time: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+      },
+    ],
     createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
   },
   {
@@ -547,6 +571,14 @@ export const mockPlans: WaterFertilizerPlan[] = [
     duration: 150,
     status: 'pending',
     approvalStatus: 'pending',
+    approvalHistory: [
+      {
+        action: 'submitted',
+        userId: 'user-3',
+        userName: '王技术员',
+        time: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+      },
+    ],
     createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
   },
   {
@@ -562,6 +594,22 @@ export const mockPlans: WaterFertilizerPlan[] = [
     status: 'completed',
     approvalStatus: 'approved',
     approverId: 'user-1',
+    approvedAt: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
+    approvalHistory: [
+      {
+        action: 'submitted',
+        userId: 'user-3',
+        userName: '王技术员',
+        time: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        action: 'approved',
+        userId: 'user-1',
+        userName: '张经理',
+        time: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
+        notes: '同意执行',
+      },
+    ],
     createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
     executedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
     completedAt: new Date(Date.now() - 3.5 * 60 * 60 * 1000).toISOString(),
@@ -587,6 +635,22 @@ export const mockPlans: WaterFertilizerPlan[] = [
     approvalStatus: 'approved',
     approverId: 'user-1',
     approvalNotes: '注意观察葡萄转色情况',
+    approvedAt: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+    approvalHistory: [
+      {
+        action: 'submitted',
+        userId: 'user-2',
+        userName: '李技术员',
+        time: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        action: 'approved',
+        userId: 'user-1',
+        userName: '张经理',
+        time: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+        notes: '注意观察葡萄转色情况',
+      },
+    ],
     createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
     executedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   },
@@ -604,6 +668,21 @@ export const mockPlans: WaterFertilizerPlan[] = [
     approvalStatus: 'rejected',
     approverId: 'user-1',
     approvalNotes: '梨区土壤湿度充足，暂不需要灌溉，建议延后一周',
+    approvalHistory: [
+      {
+        action: 'submitted',
+        userId: 'user-3',
+        userName: '王技术员',
+        time: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        action: 'rejected',
+        userId: 'user-1',
+        userName: '张经理',
+        time: new Date(Date.now() - 5.5 * 60 * 60 * 1000).toISOString(),
+        notes: '梨区土壤湿度充足，暂不需要灌溉，建议延后一周',
+      },
+    ],
     createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
   },
 ];

@@ -18,13 +18,29 @@ import { TrendingUp, Award, DollarSign, BarChart3 } from 'lucide-react';
 import { useAppStore } from '@/store';
 import { cn, formatCurrency, formatNumber } from '@/utils';
 
-export default function YieldComparison() {
+interface TimeRange {
+  start: string;
+  end: string;
+}
+
+interface YieldComparisonProps {
+  plotId: string;
+  timeRange: TimeRange;
+}
+
+export default function YieldComparison({ plotId, timeRange }: YieldComparisonProps) {
   const { yieldData, plots } = useAppStore();
 
+  const filteredYieldData = useMemo(() => {
+    return yieldData.filter((item) => {
+      return plotId === 'all' || item.plotId === plotId;
+    });
+  }, [yieldData, plotId]);
+
   const years = useMemo(() => {
-    const yearSet = new Set(yieldData.map((item) => item.year));
+    const yearSet = new Set(filteredYieldData.map((item) => item.year));
     return Array.from(yearSet).sort((a, b) => a - b);
-  }, [yieldData]);
+  }, [filteredYieldData]);
 
   const yearlyComparison = useMemo(() => {
     const grouped: Record<number, { year: number; output: number; revenue: number; quality: number; count: number }> = {};
@@ -33,7 +49,7 @@ export default function YieldComparison() {
       grouped[year] = { year, output: 0, revenue: 0, quality: 0, count: 0 };
     });
 
-    yieldData.forEach((item) => {
+    filteredYieldData.forEach((item) => {
       if (grouped[item.year]) {
         grouped[item.year].output += item.output;
         grouped[item.year].revenue += item.totalRevenue;
@@ -46,12 +62,14 @@ export default function YieldComparison() {
       ...item,
       quality: item.count > 0 ? item.quality / item.count : 0,
     }));
-  }, [yieldData, years]);
+  }, [filteredYieldData, years]);
 
   const plotComparison = useMemo(() => {
     const grouped: Record<string, { plotName: string; cropType: string; output: number; quality: number; revenue: number }> = {};
 
-    plots.forEach((plot) => {
+    const filteredPlots = plotId === 'all' ? plots : plots.filter(p => p.id === plotId);
+    
+    filteredPlots.forEach((plot) => {
       grouped[plot.id] = {
         plotName: plot.name,
         cropType: plot.cropType,
@@ -62,7 +80,7 @@ export default function YieldComparison() {
     });
 
     const latestYear = Math.max(...years);
-    yieldData
+    filteredYieldData
       .filter((item) => item.year === latestYear)
       .forEach((item) => {
         if (grouped[item.plotId]) {
@@ -73,11 +91,11 @@ export default function YieldComparison() {
       });
 
     return Object.values(grouped).sort((a, b) => b.output - a.output);
-  }, [yieldData, plots, years]);
+  }, [filteredYieldData, plots, years, plotId]);
 
   const qualityRadarData = useMemo(() => {
     const latestYear = Math.max(...years);
-    return yieldData
+    return filteredYieldData
       .filter((item) => item.year === latestYear)
       .map((item) => ({
         plotName: item.plotName,
@@ -87,34 +105,34 @@ export default function YieldComparison() {
         年产值: Math.round((item.totalRevenue / 10000) * 10) / 10,
         fullMark: 100,
       }));
-  }, [yieldData, years]);
+  }, [filteredYieldData, years]);
 
   const totalOutput = useMemo(() => {
     const latestYear = Math.max(...years);
-    return yieldData.filter((item) => item.year === latestYear).reduce((sum, item) => sum + item.output, 0);
-  }, [yieldData, years]);
+    return filteredYieldData.filter((item) => item.year === latestYear).reduce((sum, item) => sum + item.output, 0);
+  }, [filteredYieldData, years]);
 
   const totalRevenue = useMemo(() => {
     const latestYear = Math.max(...years);
-    return yieldData.filter((item) => item.year === latestYear).reduce((sum, item) => sum + item.totalRevenue, 0);
-  }, [yieldData, years]);
+    return filteredYieldData.filter((item) => item.year === latestYear).reduce((sum, item) => sum + item.totalRevenue, 0);
+  }, [filteredYieldData, years]);
 
   const avgQuality = useMemo(() => {
     const latestYear = Math.max(...years);
-    const latestData = yieldData.filter((item) => item.year === latestYear);
+    const latestData = filteredYieldData.filter((item) => item.year === latestYear);
     return latestData.length > 0
       ? latestData.reduce((sum, item) => sum + item.quality, 0) / latestData.length
       : 0;
-  }, [yieldData, years]);
+  }, [filteredYieldData, years]);
 
   const yoyGrowth = useMemo(() => {
     if (years.length < 2) return 0;
     const latestYear = Math.max(...years);
     const prevYear = latestYear - 1;
-    const latestOutput = yieldData.filter((item) => item.year === latestYear).reduce((sum, item) => sum + item.output, 0);
-    const prevOutput = yieldData.filter((item) => item.year === prevYear).reduce((sum, item) => sum + item.output, 0);
+    const latestOutput = filteredYieldData.filter((item) => item.year === latestYear).reduce((sum, item) => sum + item.output, 0);
+    const prevOutput = filteredYieldData.filter((item) => item.year === prevYear).reduce((sum, item) => sum + item.output, 0);
     return prevOutput > 0 ? ((latestOutput - prevOutput) / prevOutput) * 100 : 0;
-  }, [yieldData, years]);
+  }, [filteredYieldData, years]);
 
   const stats = [
     { label: '今年总产量', value: `${formatNumber(totalOutput / 1000, 1)}吨`, icon: BarChart3, color: 'text-primary-600', bg: 'bg-primary-50' },

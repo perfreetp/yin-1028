@@ -64,6 +64,14 @@ export interface FertilizerFormula {
   createdAt: string;
 }
 
+export interface ApprovalHistoryItem {
+  action: 'approved' | 'rejected' | 'submitted';
+  userId: string;
+  userName: string;
+  time: string;
+  notes?: string;
+}
+
 export interface WaterFertilizerPlan {
   id: string;
   plotId: string;
@@ -85,6 +93,9 @@ export interface WaterFertilizerPlan {
   approvalStatus: 'pending' | 'approved' | 'rejected';
   approverId?: string;
   approvalNotes?: string;
+  approvalHistory?: ApprovalHistoryItem[];
+  approvedAt?: string;
+  rejectedAt?: string;
   createdAt: string;
   executedAt?: string;
   completedAt?: string;
@@ -150,6 +161,11 @@ export interface Inspection {
   notes: string;
   photos: string[];
   issues: string[];
+  updatedAt?: string;
+  updatedBy?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
 }
 
 export interface YieldData {

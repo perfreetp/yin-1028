@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Clock, Cpu, Calendar, Wrench, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Clock, Cpu, Calendar, Wrench, ChevronRight, UserCheck } from 'lucide-react';
 import { useAppStore } from '@/store';
 import { formatDateTime, getStatusColor, getStatusText, getAlertTypeText, cn } from '@/utils';
 import type { Alert } from '@/types';
@@ -19,7 +19,22 @@ export const AlertList: React.FC<AlertListProps> = ({
   statusFilter,
   onHandle,
 }) => {
-  const { alerts } = useAppStore();
+  const { alerts, getUserNameById } = useAppStore();
+
+  const formatFriendlyTime = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return '刚刚';
+    if (minutes < 60) return `${minutes}分钟前`;
+    if (hours < 24) return `${hours}小时前`;
+    if (days < 7) return `${days}天前`;
+    return formatDateTime(dateStr);
+  };
 
   const filteredAlerts = alerts.filter((alert) => {
     const matchType = typeFilter === 'all' || alert.type === typeFilter;
@@ -100,7 +115,16 @@ export const AlertList: React.FC<AlertListProps> = ({
                 状态
               </th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-primary-700">
-                处理人
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4" />
+                  处理人
+                </div>
+              </th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-primary-700">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  处理时间
+                </div>
               </th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-primary-700">
                 操作
@@ -149,15 +173,31 @@ export const AlertList: React.FC<AlertListProps> = ({
                     {getStatusText(alert.status)}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {alert.handler || '-'}
+                <td className="px-6 py-4 text-sm">
+                  {alert.handler ? (
+                    <div>
+                      <span className="text-gray-700 font-medium">
+                        {getUserNameById(alert.handler)}
+                      </span>
+                      {alert.handledAt && (
+                        <span className="text-gray-400 text-xs ml-2">
+                          · {formatFriendlyTime(alert.handledAt)}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {alert.handledAt ? formatFriendlyTime(alert.handledAt) : '-'}
                 </td>
                 <td className="px-6 py-4 text-center">
                   <button
                     onClick={() => onHandle(alert)}
                     className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors duration-200 group-hover:gap-2"
                   >
-                    {alert.status === 'resolved' ? '查看' : '处理'}
+                    {alert.status === 'resolved' ? '查看详情' : '处理'}
                     <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                   </button>
                 </td>

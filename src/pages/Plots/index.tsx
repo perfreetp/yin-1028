@@ -28,6 +28,8 @@ import {
   Plus,
   Search,
   Move,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { useAppStore } from '@/store';
 import {
@@ -215,6 +217,8 @@ export default function Plots() {
     currentUser,
     setSelectedPlot,
     addInspection,
+    updateInspection,
+    deleteInspection,
     updatePlot,
     selectedPlot,
   } = useAppStore();
@@ -230,6 +234,13 @@ export default function Plots() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isAddingVertex, setIsAddingVertex] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingInspection, setEditingInspection] = useState<Inspection | null>(null);
+  const [editNotes, setEditNotes] = useState('');
+  const [editLat, setEditLat] = useState(0);
+  const [editLng, setEditLng] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingInspectionId, setDeletingInspectionId] = useState<string | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -254,7 +265,7 @@ export default function Plots() {
   const plotInspections = useMemo(() => {
     if (!localSelectedPlot) return [];
     return inspections
-      .filter((i) => i.plotId === localSelectedPlot.id)
+      .filter((i) => i.plotId === localSelectedPlot.id && !i.isDeleted)
       .sort(
         (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
       );
@@ -379,6 +390,41 @@ export default function Plots() {
     setShowCheckinModal(false);
     setCheckinNotes('');
     setCheckinPlotId('');
+  };
+
+  const canEditOrDelete = (inspection: Inspection) => {
+    return currentUser.role === 'manager' || inspection.userId === currentUser.id;
+  };
+
+  const handleEditClick = (inspection: Inspection) => {
+    setEditingInspection(inspection);
+    setEditNotes(inspection.notes);
+    setEditLat(inspection.lat);
+    setEditLng(inspection.lng);
+    setShowEditModal(true);
+  };
+
+  const handleSaveInspectionEdit = () => {
+    if (!editingInspection) return;
+    updateInspection(editingInspection.id, {
+      notes: editNotes,
+      lat: editLat,
+      lng: editLng,
+    });
+    setShowEditModal(false);
+    setEditingInspection(null);
+  };
+
+  const handleDeleteClick = (inspectionId: string) => {
+    setDeletingInspectionId(inspectionId);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deletingInspectionId) return;
+    deleteInspection(deletingInspectionId, currentUser.name);
+    setShowDeleteModal(false);
+    setDeletingInspectionId(null);
   };
 
   const getStageIcon = (stage: string) => {
@@ -866,6 +912,24 @@ export default function Plots() {
                                   </p>
                                 </div>
                               </div>
+                              {canEditOrDelete(inspection) && (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleEditClick(inspection)}
+                                    className="p-1.5 hover:bg-white rounded-lg transition-colors text-gray-500 hover:text-primary-600"
+                                    title="编辑"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteClick(inspection.id)}
+                                    className="p-1.5 hover:bg-white rounded-lg transition-colors text-gray-500 hover:text-red-600"
+                                    title="撤销"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                             {inspection.notes && (
                               <p className="text-sm text-gray-600 mb-2">
@@ -992,6 +1056,142 @@ export default function Plots() {
               >
                 <MapPin className="w-4 h-4" />
                 确认打卡
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editingInspection && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-slide-up">
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <h3 className="font-serif text-xl font-semibold text-gray-800">
+                  编辑巡园记录
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingInspection(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="input-label">地块</label>
+                <input
+                  type="text"
+                  value={editingInspection.plotName}
+                  readOnly
+                  className="input bg-gray-50 cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <label className="input-label">打卡备注</label>
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="请输入巡园记录..."
+                  rows={4}
+                  className="input resize-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="input-label">纬度 (lat)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={editLat}
+                    onChange={(e) => setEditLat(parseFloat(e.target.value) || 0)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="input-label">经度 (lng)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={editLng}
+                    onChange={(e) => setEditLng(parseFloat(e.target.value) || 0)}
+                    className="input"
+                  />
+                </div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Clock className="w-4 h-4" />
+                  <span>原始打卡时间：{formatDateTime(editingInspection.time)}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                  <User className="w-4 h-4" />
+                  <span>打卡人：{editingInspection.userName}</span>
+                </div>
+                {editingInspection.updatedAt && (
+                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                    <Edit2 className="w-4 h-4" />
+                    <span>最后编辑：{formatDateTime(editingInspection.updatedAt)} by {editingInspection.updatedBy}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-100 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingInspection(null);
+                }}
+                className="btn-secondary flex-1"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveInspectionEdit}
+                className="btn-primary flex-1"
+              >
+                <Save className="w-4 h-4" />
+                保存修改
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-slide-up">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="font-serif text-xl font-semibold text-gray-800 mb-2">
+                确认撤销此巡园记录？
+              </h3>
+              <p className="text-gray-500 text-sm">
+                撤销后记录将标记为已删除，可在后台恢复
+              </p>
+            </div>
+            <div className="p-6 border-t border-gray-100 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingInspectionId(null);
+                }}
+                className="btn-secondary flex-1"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors"
+              >
+                <Trash2 className="w-4 h-4 inline mr-1" />
+                确认删除
               </button>
             </div>
           </div>

@@ -16,6 +16,16 @@ import { Droplets, Users, Wrench, Sprout, TrendingUp } from 'lucide-react';
 import { useAppStore } from '@/store';
 import { cn, formatCurrency } from '@/utils';
 
+interface TimeRange {
+  start: string;
+  end: string;
+}
+
+interface CostStatisticsProps {
+  plotId: string;
+  timeRange: TimeRange;
+}
+
 const COLORS = ['#2D5A27', '#5fad54', '#8ec985', '#cda244', '#4A90D9'];
 
 const categoryMap: Record<string, { name: string; icon: typeof Droplets; color: string }> = {
@@ -26,8 +36,23 @@ const categoryMap: Record<string, { name: string; icon: typeof Droplets; color: 
   other: { name: '其他', icon: TrendingUp, color: '#9ca3af' },
 };
 
-export default function CostStatistics() {
+function isDateInRange(dateStr: string, start: string, end: string): boolean {
+  const date = new Date(dateStr.split('T')[0]);
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  return date >= startDate && date <= endDate;
+}
+
+export default function CostStatistics({ plotId, timeRange }: CostStatisticsProps) {
   const { costData, plots } = useAppStore();
+
+  const filteredCostData = useMemo(() => {
+    return costData.filter((item) => {
+      const plotMatch = plotId === 'all' || item.plotId === plotId;
+      const timeMatch = isDateInRange(item.date, timeRange.start, timeRange.end);
+      return plotMatch && timeMatch;
+    });
+  }, [costData, plotId, timeRange]);
 
   const costByCategory = useMemo(() => {
     const grouped: Record<string, number> = {
@@ -38,7 +63,7 @@ export default function CostStatistics() {
       other: 0,
     };
 
-    costData.forEach((item) => {
+    filteredCostData.forEach((item) => {
       grouped[item.category] = (grouped[item.category] || 0) + item.amount;
     });
 
@@ -48,12 +73,14 @@ export default function CostStatistics() {
       icon: categoryMap[key]?.icon,
       color: categoryMap[key]?.color,
     }));
-  }, [costData]);
+  }, [filteredCostData]);
 
   const costByPlot = useMemo(() => {
     const grouped: Record<string, { plotName: string; water: number; fertilizer: number; labor: number; equipment: number; other: number; total: number }> = {};
 
-    plots.forEach((plot) => {
+    const filteredPlots = plotId === 'all' ? plots : plots.filter(p => p.id === plotId);
+    
+    filteredPlots.forEach((plot) => {
       grouped[plot.id] = {
         plotName: plot.name,
         water: 0,
@@ -65,7 +92,7 @@ export default function CostStatistics() {
       };
     });
 
-    costData.forEach((item) => {
+    filteredCostData.forEach((item) => {
       if (grouped[item.plotId]) {
         grouped[item.plotId][item.category as keyof Omit<typeof grouped[string], 'plotName'>] += item.amount;
         grouped[item.plotId].total += item.amount;
@@ -73,29 +100,29 @@ export default function CostStatistics() {
     });
 
     return Object.values(grouped).sort((a, b) => b.total - a.total);
-  }, [costData, plots]);
+  }, [filteredCostData, plots, plotId]);
 
   const totalCost = useMemo(() => {
-    return costData.reduce((sum, item) => sum + item.amount, 0);
-  }, [costData]);
+    return filteredCostData.reduce((sum, item) => sum + item.amount, 0);
+  }, [filteredCostData]);
 
   const waterFertilizerCost = useMemo(() => {
-    return costData
+    return filteredCostData
       .filter((item) => item.category === 'water' || item.category === 'fertilizer')
       .reduce((sum, item) => sum + item.amount, 0);
-  }, [costData]);
+  }, [filteredCostData]);
 
   const laborCost = useMemo(() => {
-    return costData
+    return filteredCostData
       .filter((item) => item.category === 'labor')
       .reduce((sum, item) => sum + item.amount, 0);
-  }, [costData]);
+  }, [filteredCostData]);
 
   const equipmentCost = useMemo(() => {
-    return costData
+    return filteredCostData
       .filter((item) => item.category === 'equipment')
       .reduce((sum, item) => sum + item.amount, 0);
-  }, [costData]);
+  }, [filteredCostData]);
 
   const stats = [
     { label: '总成本', value: totalCost, icon: TrendingUp, color: 'text-primary-600', bg: 'bg-primary-50' },

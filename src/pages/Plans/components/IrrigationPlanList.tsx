@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useAppStore } from '@/store';
 import { getStatusColor, getStatusText, getPlotById, formatDateTime } from '@/utils';
 import type { WaterFertilizerPlan } from '@/types';
-import { Droplets, Leaf, Droplet, Calendar, Clock, User, MoreHorizontal, Eye, Pause, Play, Plus } from 'lucide-react';
+import PlanDetailModal from './PlanDetailModal';
+import { Droplets, Leaf, Droplet, Calendar, Clock, User, MoreHorizontal, Eye, Pause, Play, Plus, CheckCircle, XCircle, Clock as ClockIcon } from 'lucide-react';
 
 interface Props {
   onCreateClick: () => void;
@@ -13,6 +15,9 @@ export default function IrrigationPlanList({ onCreateClick, onPausePlan, onResum
   const plans = useAppStore((state) => state.plans);
   const plots = useAppStore((state) => state.plots);
   const getUserNameById = useAppStore((state) => state.getUserNameById);
+  const getApprovalHistory = useAppStore((state) => state.getApprovalHistory);
+  const [selectedPlan, setSelectedPlan] = useState<WaterFertilizerPlan | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const getTypeIcon = (type: WaterFertilizerPlan['type']) => {
     switch (type) {
@@ -47,6 +52,35 @@ export default function IrrigationPlanList({ onCreateClick, onPausePlan, onResum
     }
   };
 
+  const getApprovalIcon = (plan: WaterFertilizerPlan) => {
+    const history = getApprovalHistory(plan);
+    const lastAction = history[history.length - 1];
+    
+    switch (lastAction.action) {
+      case 'approved':
+        return <CheckCircle className="w-3.5 h-3.5 text-success-500" />;
+      case 'rejected':
+        return <XCircle className="w-3.5 h-3.5 text-red-500" />;
+      case 'submitted':
+        return <ClockIcon className="w-3.5 h-3.5 text-gray-400" />;
+    }
+  };
+
+  const getApprovalTooltip = (plan: WaterFertilizerPlan) => {
+    const history = getApprovalHistory(plan);
+    const lastAction = history[history.length - 1];
+    
+    if (lastAction.action === 'submitted') {
+      return `提交人: ${lastAction.userName} · ${formatDateTime(lastAction.time)}`;
+    }
+    return `审批人: ${lastAction.userName} · ${formatDateTime(lastAction.time)}`;
+  };
+
+  const handleViewDetail = (plan: WaterFertilizerPlan) => {
+    setSelectedPlan(plan);
+    setShowDetailModal(true);
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-4">
@@ -77,6 +111,8 @@ export default function IrrigationPlanList({ onCreateClick, onPausePlan, onResum
             <tbody>
               {plans.map((plan, index) => {
                 const plot = getPlotById(plots, plan.plotId);
+                const history = getApprovalHistory(plan);
+                const lastApproval = history.length > 1 ? history[history.length - 1] : null;
                 return (
                   <tr key={plan.id} className="animate-slide-up" style={{ animationDelay: `${index * 50}ms` }}>
                     <td>
@@ -106,9 +142,24 @@ export default function IrrigationPlanList({ onCreateClick, onPausePlan, onResum
                       )}
                     </td>
                     <td>
-                      <span className={`badge ${getStatusColor(plan.status)}`}>
-                        {getStatusText(plan.status)}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 group relative">
+                          <span className={`badge ${getStatusColor(plan.status)}`}>
+                            {getStatusText(plan.status)}
+                          </span>
+                          <div className="cursor-help">
+                            {getApprovalIcon(plan)}
+                          </div>
+                          <div className="absolute left-0 top-full mt-1 z-10 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                            {getApprovalTooltip(plan)}
+                          </div>
+                        </div>
+                        {lastApproval && lastApproval.action !== 'submitted' && (
+                          <div className="text-xs text-gray-500">
+                            {lastApproval.userName} · {formatDateTime(lastApproval.time)}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -118,7 +169,11 @@ export default function IrrigationPlanList({ onCreateClick, onPausePlan, onResum
                     </td>
                     <td>
                       <div className="flex items-center gap-1">
-                        <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                        <button
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          onClick={() => handleViewDetail(plan)}
+                          title="查看详情"
+                        >
                           <Eye className="w-4 h-4 text-gray-500" />
                         </button>
                         {plan.status === 'executing' && (
@@ -149,8 +204,16 @@ export default function IrrigationPlanList({ onCreateClick, onPausePlan, onResum
           </table>
         </div>
       </div>
+
+      {showDetailModal && (
+        <PlanDetailModal
+          plan={selectedPlan}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedPlan(null);
+          }}
+        />
+      )}
     </div>
   );
 }
-
-

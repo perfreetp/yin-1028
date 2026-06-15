@@ -17,6 +17,7 @@ import type {
   WeatherForecast,
   DashboardStats,
   SensorData,
+  ApprovalHistoryItem,
 } from '@/types';
 import {
   mockUsers,
@@ -136,15 +137,18 @@ interface AppState {
   updatePlan: (id: string, updates: Partial<WaterFertilizerPlan>) => void;
   approvePlan: (id: string, approverId: string, notes?: string) => void;
   rejectPlan: (id: string, approverId: string, notes: string) => void;
+  getApprovalHistory: (plan: WaterFertilizerPlan) => ApprovalHistoryItem[];
 
   addFormula: (formula: FertilizerFormula) => void;
   updateFormula: (id: string, updates: Partial<FertilizerFormula>) => void;
   deleteFormula: (id: string) => void;
 
   handleAlert: (id: string, handler: string, notes: string) => void;
-  resolveAlert: (id: string, notes: string) => void;
+  resolveAlert: (id: string, handler: string, notes: string) => void;
 
   addInspection: (inspection: Inspection) => void;
+  updateInspection: (id: string, updates: Partial<Inspection>) => void;
+  deleteInspection: (id: string, deletedBy: string) => void;
   addFlowerPeriod: (period: FlowerPeriod) => void;
 
   controlValve: (sensorId: string, status: 'open' | 'closed') => void;
@@ -237,11 +241,28 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   approvePlan: (id, approverId, notes) =>
     set((state) => {
-      const plans = state.plans.map((p) =>
-        p.id === id
-          ? { ...p, status: 'approved' as const, approvalStatus: 'approved' as const, approverId, approvalNotes: notes }
-          : p
-      );
+      const now = new Date().toISOString();
+      const userName = state.getUserNameById(approverId);
+      const plans = state.plans.map((p) => {
+        if (p.id !== id) return p;
+        const existingHistory = p.approvalHistory || [];
+        const newHistory: ApprovalHistoryItem = {
+          action: 'approved' as const,
+          userId: approverId,
+          userName,
+          time: now,
+          notes,
+        };
+        return {
+          ...p,
+          status: 'approved' as const,
+          approvalStatus: 'approved' as const,
+          approverId,
+          approvalNotes: notes,
+          approvedAt: now,
+          approvalHistory: [newHistory, ...existingHistory],
+        };
+      });
       const dashboardStats = computeDashboardStats(state.plots, state.sensors, plans, state.alerts, state.irrigationRecords);
       const result = { plans, dashboardStats };
       syncPersist({ ...state, ...result });
@@ -250,11 +271,28 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   rejectPlan: (id, approverId, notes) =>
     set((state) => {
-      const plans = state.plans.map((p) =>
-        p.id === id
-          ? { ...p, status: 'rejected' as const, approvalStatus: 'rejected' as const, approverId, approvalNotes: notes }
-          : p
-      );
+      const now = new Date().toISOString();
+      const userName = state.getUserNameById(approverId);
+      const plans = state.plans.map((p) => {
+        if (p.id !== id) return p;
+        const existingHistory = p.approvalHistory || [];
+        const newHistory: ApprovalHistoryItem = {
+          action: 'rejected' as const,
+          userId: approverId,
+          userName,
+          time: now,
+          notes,
+        };
+        return {
+          ...p,
+          status: 'rejected' as const,
+          approvalStatus: 'rejected' as const,
+          approverId,
+          approvalNotes: notes,
+          rejectedAt: now,
+          approvalHistory: [newHistory, ...existingHistory],
+        };
+      });
       const dashboardStats = computeDashboardStats(state.plots, state.sensors, plans, state.alerts, state.irrigationRecords);
       const result = { plans, dashboardStats };
       syncPersist({ ...state, ...result });
@@ -294,11 +332,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { alerts, dashboardStats };
     }),
 
-  resolveAlert: (id, notes) =>
+  resolveAlert: (id, handler, notes) =>
     set((state) => {
       const alerts = state.alerts.map((a) =>
         a.id === id
-          ? { ...a, status: 'resolved' as const, handledAt: new Date().toISOString(), handleNotes: notes }
+          ? { ...a, status: 'resolved' as const, handler, handledAt: new Date().toISOString(), handleNotes: notes }
           : a
       );
       const dashboardStats = computeDashboardStats(state.plots, state.sensors, state.plans, alerts, state.irrigationRecords);
@@ -309,6 +347,30 @@ export const useAppStore = create<AppState>((set, get) => ({
   addInspection: (inspection) =>
     set((state) => {
       const inspections = [inspection, ...state.inspections];
+      syncPersist({ ...state, inspections });
+      return { inspections };
+    }),
+
+  updateInspection: (id, updates) =>
+    set((state) => {
+      const now = new Date().toISOString();
+      const inspections = state.inspections.map((i) =>
+        i.id === id
+          ? { ...i, ...updates, updatedAt: now, updatedBy: state.currentUser.id }
+          : i
+      );
+      syncPersist({ ...state, inspections });
+      return { inspections };
+    }),
+
+  deleteInspection: (id, deletedBy) =>
+    set((state) => {
+      const now = new Date().toISOString();
+      const inspections = state.inspections.map((i) =>
+        i.id === id
+          ? { ...i, isDeleted: true, deletedAt: now, deletedBy }
+          : i
+      );
       syncPersist({ ...state, inspections });
       return { inspections };
     }),
@@ -350,6 +412,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   getUserNameById: (userId: string) => {
     const user = mockUsers.find((u) => u.id === userId);
     return user ? user.name : userId;
+  },
+
+  getApprovalHistory: (plan) => {
+    if (plan.approvalHistory && plan.approvalHistory.length > 0) {
+      return plan.approvalHistory;
+    }
+    const userName = get().getUserNameById(plan.creatorId);
+    return [
+      {
+        action: 'submitted' as const,
+        userId: plan.creatorId,
+        userName,
+        time: plan.createdAt,
+      },
+    ];
   },
 
   resetData: () => {

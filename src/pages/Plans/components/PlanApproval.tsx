@@ -1,8 +1,158 @@
 import { useState } from 'react';
 import { useAppStore } from '@/store';
 import { getStatusColor, getStatusText, getPlotById, formatDateTime } from '@/utils';
-import type { WaterFertilizerPlan } from '@/types';
-import { Droplets, Leaf, Droplet, Calendar, Clock, User, Check, X, FileText } from 'lucide-react';
+import type { WaterFertilizerPlan, ApprovalHistoryItem } from '@/types';
+import { Droplets, Leaf, Droplet, Calendar, Clock, User, Check, X, FileText, CheckCircle, XCircle, History, MessageSquare } from 'lucide-react';
+
+interface ApprovalTimelineProps {
+  history: ApprovalHistoryItem[];
+}
+
+function ApprovalTimeline({ history }: ApprovalTimelineProps) {
+  const getActionIcon = (action: ApprovalHistoryItem['action']) => {
+    switch (action) {
+      case 'approved':
+        return <CheckCircle className="w-4 h-4 text-success-500" />;
+      case 'rejected':
+        return <XCircle className="w-4 h-4 text-red-500" />;
+      case 'submitted':
+        return <Clock className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getActionBg = (action: ApprovalHistoryItem['action']) => {
+    switch (action) {
+      case 'approved':
+        return 'bg-success-100';
+      case 'rejected':
+        return 'bg-red-100';
+      case 'submitted':
+        return 'bg-gray-100';
+    }
+  };
+
+  const getActionText = (action: ApprovalHistoryItem['action']) => {
+    switch (action) {
+      case 'approved':
+        return '已通过';
+      case 'rejected':
+        return '已驳回';
+      case 'submitted':
+        return '已提交';
+    }
+  };
+
+  const getLineColor = (action: ApprovalHistoryItem['action']) => {
+    switch (action) {
+      case 'approved':
+        return 'bg-success-300';
+      case 'rejected':
+        return 'bg-red-300';
+      case 'submitted':
+        return 'bg-gray-300';
+    }
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-gray-100">
+      <div className="flex items-center gap-2 mb-3">
+        <History className="w-4 h-4 text-gray-400" />
+        <span className="text-sm font-medium text-gray-700">审批历史</span>
+      </div>
+      <div className="relative pl-6">
+        {history.map((item, index) => (
+          <div key={index} className="relative pb-4 last:pb-0">
+            {index < history.length - 1 && (
+              <div
+                className={`absolute left-[-1.25rem] top-5 w-0.5 h-full ${getLineColor(item.action)}`}
+              />
+            )}
+            <div
+              className={`absolute left-[-1.25rem] top-0 p-1 rounded-full ${getActionBg(item.action)}`}
+            >
+              {getActionIcon(item.action)}
+            </div>
+            <div className="ml-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-800">
+                  {getActionText(item.action)}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {item.userName}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {formatDateTime(item.time)}
+                </span>
+              </div>
+              {item.notes && (
+                <div className="mt-1 flex items-start gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-gray-600">{item.notes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface ApproveModalProps {
+  plan: WaterFertilizerPlan | null;
+  onClose: () => void;
+  onConfirm: (notes: string) => void;
+}
+
+function ApproveModal({ plan, onClose, onConfirm }: ApproveModalProps) {
+  const [notes, setNotes] = useState('');
+
+  if (!plan) return null;
+
+  const handleConfirm = () => {
+    onConfirm(notes);
+    setNotes('');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-success-100 rounded-full">
+              <CheckCircle className="w-6 h-6 text-success-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">通过计划</h3>
+              <p className="text-sm text-gray-500">请填写审批意见（可选）</p>
+            </div>
+          </div>
+          <div>
+            <label className="input-label">审批意见</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="input min-h-[100px]"
+              placeholder="请填写审批意见..."
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-100">
+          <button onClick={onClose} className="btn-secondary">
+            取消
+          </button>
+          <button
+            onClick={handleConfirm}
+            className="btn-success"
+          >
+            确认通过
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function PlanApproval() {
   const plans = useAppStore((state) => state.plans);
@@ -11,9 +161,11 @@ export default function PlanApproval() {
   const approvePlan = useAppStore((state) => state.approvePlan);
   const rejectPlan = useAppStore((state) => state.rejectPlan);
   const getUserNameById = useAppStore((state) => state.getUserNameById);
+  const getApprovalHistory = useAppStore((state) => state.getApprovalHistory);
   const [selectedPlan, setSelectedPlan] = useState<WaterFertilizerPlan | null>(null);
   const [rejectionNotes, setRejectionNotes] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
 
   const pendingPlans = plans.filter((p) => p.approvalStatus === 'pending');
 
@@ -51,8 +203,15 @@ export default function PlanApproval() {
   };
 
   const handleApprove = (plan: WaterFertilizerPlan) => {
-    if (currentUser.role === 'manager') {
-      approvePlan(plan.id, currentUser.id);
+    setSelectedPlan(plan);
+    setShowApproveModal(true);
+  };
+
+  const confirmApprove = (notes: string) => {
+    if (selectedPlan && currentUser.role === 'manager') {
+      approvePlan(selectedPlan.id, currentUser.id, notes || undefined);
+      setShowApproveModal(false);
+      setSelectedPlan(null);
     }
   };
 
@@ -99,6 +258,7 @@ export default function PlanApproval() {
         ) : (
           pendingPlans.map((plan, index) => {
             const plot = getPlotById(plots, plan.plotId);
+            const history = getApprovalHistory(plan);
             return (
               <div
                 key={plan.id}
@@ -161,7 +321,9 @@ export default function PlanApproval() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <ApprovalTimeline history={history} />
+
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-4">
                     <div className="flex items-center gap-1 text-sm text-gray-500">
                       <User className="w-4 h-4" />
                       <span>创建人: {getUserNameById(plan.creatorId)}</span>
@@ -196,6 +358,17 @@ export default function PlanApproval() {
           })
         )}
       </div>
+
+      {showApproveModal && (
+        <ApproveModal
+          plan={selectedPlan}
+          onClose={() => {
+            setShowApproveModal(false);
+            setSelectedPlan(null);
+          }}
+          onConfirm={confirmApprove}
+        />
+      )}
 
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
