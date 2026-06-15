@@ -1,0 +1,100 @@
+/** @type {import('tailwindcss').Config} */
+
+export default {
+  darkMode: "class",
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    container: {
+      center: true,
+    },
+    extend: {
+      colors: {
+        primary: {
+          50: "#f1f8f0",
+          100: "#dcefd9",
+          200: "#bbdfb5",
+          300: "#8ec985",
+          400: "#5fad54",
+          500: "#2D5A27",
+          600: "#2a5224",
+          700: "#24441f",
+          800: "#1f361b",
+          900: "#1a2d17",
+        },
+        soil: {
+          50: "#faf7ed",
+          100: "#f3ecd3",
+          200: "#e6d6a5",
+          300: "#d8bc6e",
+          400: "#cda244",
+          500: "#8B6914",
+          600: "#7a5c12",
+          700: "#654a0f",
+          800: "#533d0d",
+          900: "#45320b",
+        },
+        sky: {
+          50: "#f0f6fc",
+          100: "#dcebf8",
+          200: "#bdd8f1",
+          300: "#91bde7",
+          400: "#659bd9",
+          500: "#4A90D9",
+          600: "#3b77c0",
+          700: "#315f9c",
+          800: "#2c507f",
+          900: "#294468",
+        },
+        warning: {
+          50: "#fff7ed",
+          100: "#ffedd5",
+          200: "#fed7aa",
+          300: "#fdba74",
+          400: "#fb923c",
+          500: "#E67E22",
+          600: "#ea580c",
+          700: "#c2410c",
+          800: "#9a3412",
+          900: "#7c2d12",
+        },
+        success: {
+          50: "#f0fdf4",
+          100: "#dcfce7",
+          200: "#bbf7d0",
+          300: "#86efac",
+          400: "#4ade80",
+          500: "#27AE60",
+          600: "#16a34a",
+          700: "#15803d",
+          800: "#166534",
+          900: "#14532d",
+        },
+        background: "#F8F5F0",
+      },
+      fontFamily: {
+        serif: ['"Noto Serif SC"', "serif"],
+        sans: ['"Noto Sans SC"', "sans-serif"],
+      },
+      boxShadow: {
+        card: "0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04)",
+        "card-hover": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+      },
+      animation: {
+        "fade-in": "fadeIn 0.5s ease-in-out",
+        "slide-up": "slideUp 0.3s ease-out",
+        "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      },
+      keyframes: {
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideUp: {
+          "0%": { transform: "translateY(10px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+      },
+    },
+  },
+  plugins: [],
+};
