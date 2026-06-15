@@ -10,6 +10,7 @@ export default function PlanApproval() {
   const currentUser = useAppStore((state) => state.currentUser);
   const approvePlan = useAppStore((state) => state.approvePlan);
   const rejectPlan = useAppStore((state) => state.rejectPlan);
+  const getUserNameById = useAppStore((state) => state.getUserNameById);
   const [selectedPlan, setSelectedPlan] = useState<WaterFertilizerPlan | null>(null);
   const [rejectionNotes, setRejectionNotes] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -163,7 +164,12 @@ export default function PlanApproval() {
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="flex items-center gap-1 text-sm text-gray-500">
                       <User className="w-4 h-4" />
-                      <span>创建人: {currentUser.name}</span>
+                      <span>创建人: {getUserNameById(plan.creatorId)}</span>
+                      {plan.approverId && (
+                        <span className="ml-3">
+                          审批人: {getUserNameById(plan.approverId)}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button

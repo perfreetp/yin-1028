@@ -2,20 +2,27 @@ import { useState } from 'react';
 import { useAppStore } from '@/store';
 import { generateId } from '@/utils';
 import type { FertilizerFormula } from '@/types';
-import { Leaf, Plus, Edit2, Trash2, X, Check } from 'lucide-react';
+import { Leaf, Plus, Edit2, Trash2, X, Check, AlertTriangle } from 'lucide-react';
 
 export default function FormulaManagement() {
   const formulas = useAppStore((state) => state.formulas);
   const currentUser = useAppStore((state) => state.currentUser);
+  const addFormula = useAppStore((state) => state.addFormula);
+  const updateFormula = useAppStore((state) => state.updateFormula);
+  const deleteFormula = useAppStore((state) => state.deleteFormula);
+
   const [showForm, setShowForm] = useState(false);
   const [editingFormula, setEditingFormula] = useState<FertilizerFormula | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     nitrogen: 15,
     phosphorus: 15,
     potassium: 15,
     traceElements: {} as Record<string, number>,
+    traceElementInput: '',
     applicableCrops: [] as string[],
+    cropInput: '',
     description: '',
   });
 
@@ -27,7 +34,9 @@ export default function FormulaManagement() {
       phosphorus: formula.phosphorus,
       potassium: formula.potassium,
       traceElements: { ...formula.traceElements },
+      traceElementInput: '',
       applicableCrops: [...formula.applicableCrops],
+      cropInput: '',
       description: formula.description,
     });
     setShowForm(true);
@@ -41,7 +50,9 @@ export default function FormulaManagement() {
       phosphorus: 15,
       potassium: 15,
       traceElements: {},
+      traceElementInput: '',
       applicableCrops: [],
+      cropInput: '',
       description: '',
     });
     setShowForm(true);
@@ -51,18 +62,73 @@ export default function FormulaManagement() {
     if (!formData.name) return;
 
     if (editingFormula) {
-      // Update logic would go here
-      console.log('Update formula:', editingFormula.id, formData);
+      updateFormula(editingFormula.id, {
+        name: formData.name,
+        nitrogen: formData.nitrogen,
+        phosphorus: formData.phosphorus,
+        potassium: formData.potassium,
+        traceElements: formData.traceElements,
+        applicableCrops: formData.applicableCrops,
+        description: formData.description,
+      });
     } else {
       const newFormula: FertilizerFormula = {
         id: generateId(),
-        ...formData,
+        name: formData.name,
+        nitrogen: formData.nitrogen,
+        phosphorus: formData.phosphorus,
+        potassium: formData.potassium,
+        traceElements: formData.traceElements,
+        applicableCrops: formData.applicableCrops,
+        description: formData.description,
         createdBy: currentUser.name,
         createdAt: new Date().toISOString().split('T')[0],
       };
-      console.log('Add formula:', newFormula);
+      addFormula(newFormula);
     }
     setShowForm(false);
+  };
+
+  const handleDelete = (id: string) => {
+    deleteFormula(id);
+    setDeleteConfirmId(null);
+  };
+
+  const addTraceElement = () => {
+    if (!formData.traceElementInput.trim()) return;
+    const parts = formData.traceElementInput.split(':');
+    if (parts.length === 2) {
+      const key = parts[0].trim();
+      const value = parseFloat(parts[1].trim());
+      if (key && !isNaN(value)) {
+        setFormData({
+          ...formData,
+          traceElements: { ...formData.traceElements, [key]: value },
+          traceElementInput: '',
+        });
+      }
+    }
+  };
+
+  const removeTraceElement = (key: string) => {
+    const { [key]: _, ...rest } = formData.traceElements;
+    setFormData({ ...formData, traceElements: rest });
+  };
+
+  const addCrop = () => {
+    if (!formData.cropInput.trim() || formData.applicableCrops.includes(formData.cropInput.trim())) return;
+    setFormData({
+      ...formData,
+      applicableCrops: [...formData.applicableCrops, formData.cropInput.trim()],
+      cropInput: '',
+    });
+  };
+
+  const removeCrop = (crop: string) => {
+    setFormData({
+      ...formData,
+      applicableCrops: formData.applicableCrops.filter((c) => c !== crop),
+    });
   };
 
   return (
@@ -103,7 +169,10 @@ export default function FormulaManagement() {
                   >
                     <Edit2 className="w-4 h-4 text-gray-500" />
                   </button>
-                  <button className="p-2 hover:bg-red-50 rounded-lg transition-colors">
+                  <button
+                    className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                    onClick={() => setDeleteConfirmId(formula.id)}
+                  >
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </button>
                 </div>
@@ -160,6 +229,30 @@ export default function FormulaManagement() {
           </div>
         ))}
       </div>
+
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setDeleteConfirmId(null)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-slide-up">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">确认删除</h3>
+              <p className="text-sm text-gray-500">删除后将无法恢复，确定要删除该配方吗？</p>
+            </div>
+            <div className="flex items-center gap-3 p-4 border-t border-gray-100">
+              <button onClick={() => setDeleteConfirmId(null)} className="btn-secondary flex-1">
+                取消
+              </button>
+              <button onClick={() => handleDelete(deleteConfirmId)} className="btn-danger flex-1">
+                <Trash2 className="w-4 h-4" />
+                确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -221,6 +314,66 @@ export default function FormulaManagement() {
                 </div>
 
                 <div>
+                  <label className="input-label">微量元素 (格式: 元素名:含量，如 铁:2)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.traceElementInput}
+                      onChange={(e) => setFormData({ ...formData, traceElementInput: e.target.value })}
+                      className="input flex-1"
+                      placeholder="铁:2"
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTraceElement())}
+                    />
+                    <button onClick={addTraceElement} className="btn-secondary">
+                      <Plus className="w-4 h-4" />
+                      添加
+                    </button>
+                  </div>
+                  {Object.keys(formData.traceElements).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {Object.entries(formData.traceElements).map(([key, value]) => (
+                        <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                          {key}: {value}%
+                          <button onClick={() => removeTraceElement(key)} className="hover:text-red-500">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="input-label">适用作物</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.cropInput}
+                      onChange={(e) => setFormData({ ...formData, cropInput: e.target.value })}
+                      className="input flex-1"
+                      placeholder="输入作物名称"
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCrop())}
+                    />
+                    <button onClick={addCrop} className="btn-secondary">
+                      <Plus className="w-4 h-4" />
+                      添加
+                    </button>
+                  </div>
+                  {formData.applicableCrops.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {formData.applicableCrops.map((crop) => (
+                        <span key={crop} className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary-50 text-primary-600 text-xs rounded-full">
+                          {crop}
+                          <button onClick={() => removeCrop(crop)} className="hover:text-red-500">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
                   <label className="input-label">配方描述</label>
                   <textarea
                     value={formData.description}
@@ -236,7 +389,7 @@ export default function FormulaManagement() {
               <button onClick={() => setShowForm(false)} className="btn-secondary">
                 取消
               </button>
-              <button onClick={handleSubmit} className="btn-primary">
+              <button onClick={handleSubmit} disabled={!formData.name} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
                 <Check className="w-4 h-4" />
                 {editingFormula ? '保存修改' : '创建配方'}
               </button>

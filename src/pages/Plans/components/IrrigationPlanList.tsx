@@ -12,7 +12,7 @@ interface Props {
 export default function IrrigationPlanList({ onCreateClick, onPausePlan, onResumePlan }: Props) {
   const plans = useAppStore((state) => state.plans);
   const plots = useAppStore((state) => state.plots);
-  const currentUser = useAppStore((state) => state.currentUser);
+  const getUserNameById = useAppStore((state) => state.getUserNameById);
 
   const getTypeIcon = (type: WaterFertilizerPlan['type']) => {
     switch (type) {
@@ -113,7 +113,7 @@ export default function IrrigationPlanList({ onCreateClick, onPausePlan, onResum
                     <td>
                       <div className="flex items-center gap-1 text-sm text-gray-600">
                         <User className="w-3.5 h-3.5 text-gray-400" />
-                        {currentUser.name}
+                        {getUserNameById(plan.creatorId)}
                       </div>
                     </td>
                     <td>

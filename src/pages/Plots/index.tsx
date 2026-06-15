@@ -215,6 +215,7 @@ export default function Plots() {
     currentUser,
     setSelectedPlot,
     addInspection,
+    updatePlot,
     selectedPlot,
   } = useAppStore();
 
@@ -321,11 +322,16 @@ export default function Plots() {
 
   const handleSaveEdit = () => {
     if (!localSelectedPlot || !editingBoundary) return;
-    setLocalSelectedPlot({
+    const updatedPlot = {
       ...localSelectedPlot,
       boundary: editingBoundary,
       area: calculatedArea,
+    };
+    updatePlot(localSelectedPlot.id, {
+      boundary: editingBoundary,
+      area: calculatedArea,
     });
+    setLocalSelectedPlot(updatedPlot);
     setIsEditing(false);
     setEditingBoundary(null);
     setIsAddingVertex(false);
